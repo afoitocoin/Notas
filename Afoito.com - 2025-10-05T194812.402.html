@@ -1,0 +1,1002 @@
+<!doctype html>
+
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Bloco de Notas — Matrix Terminal</title>
+
+  <link rel="manifest" href="manifest.json" />
+
+  <meta name="theme-color" content="#000000" />
+
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+
+  <style>
+
+    :root {
+
+      --bg: #000;
+
+      --neon: #00ff66;
+
+      --muted: #7fbf99;
+
+      --panel: rgba(0, 0, 0, 0.6);
+
+      --highlight: #ffeb3b;
+
+      --folder: #062b06;
+
+      --glass: rgba(255, 255, 255, 0.03);
+
+      --glass-2: rgba(255, 255, 255, 0.02);
+
+      --editor-text: #d9ffea; /* Cor do texto do editor melhorada */
+
+      font-synthesis: none;
+
+    }
+
+    * { box-sizing: border-box }
+
+    html, body {
+
+      height: 100%;
+
+      margin: 0;
+
+      background: radial-gradient(ellipse at 20% 10%, rgba(0, 255, 102, 0.06), transparent 10%), linear-gradient(180deg, #000 0%, #021202 100%);
+
+      color: var(--neon);
+
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+
+    }
+
+    .app {
+
+      display: grid;
+
+      grid-template-columns: 260px 1fr 380px;
+
+      gap: 12px;
+
+      height: 100vh;
+
+      padding: 18px;
+
+    }
+
+    header {
+
+      grid-column: 1/-1;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 12px;
+
+      padding: 8px 18px;
+
+      border-radius: 12px;
+
+    }
+
+    .brand {
+
+      font-weight: 700;
+
+      font-size: 18px;
+
+      color: var(--neon);
+
+      letter-spacing: 2px;
+
+    }
+
+    .panel {
+
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4));
+
+      border: 1px solid rgba(0, 255, 102, 0.06);
+
+      padding: 12px;
+
+      border-radius: 10px;
+
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+
+    }
+
+    /* Sidebar */
+
+    .sidebar {
+
+      padding: 12px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      height: calc(100vh - 64px);
+
+      gap: 10px;
+
+    }
+
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    button {
+
+      background: transparent;
+
+      border: 1px solid rgba(0, 255, 102, 0.12);
+
+      color: var(--neon);
+
+      padding: 8px 10px;
+
+      border-radius: 8px;
+
+      cursor: pointer;
+
+    }
+
+    button.primary {
+
+      border-color: rgba(0, 255, 102, 0.25);
+
+      background: linear-gradient(180deg, rgba(0, 255, 102, 0.03), transparent);
+
+    }
+
+    .small { padding: 6px 8px; font-size: 13px; }
+
+    .folders {
+
+      overflow: auto;
+
+      padding: 6px;
+
+      border-radius: 8px;
+
+      background: linear-gradient(180deg, var(--glass), var(--glass-2));
+
+      flex: 1;
+
+    }
+
+    .folder {
+
+      padding: 8px;
+
+      border-radius: 6px;
+
+      margin-bottom: 6px;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      border: 1px solid rgba(0, 255, 102, 0.03);
+
+    }
+
+    .folder.selected { outline: 2px solid rgba(0, 255, 102, 0.08); }
+
+    .notes-list { margin-top: 10px; max-height: 38vh; overflow: auto; }
+
+    .note-item {
+
+      padding: 8px;
+
+      border-radius: 6px;
+
+      margin-bottom: 6px;
+
+      background: rgba(0, 0, 0, 0.3);
+
+      cursor: pointer;
+
+    }
+
+    .note-item.active { box-shadow: inset 0 0 0 2px rgba(0, 255, 102, 0.04); }
+
+    /* Editor */
+
+    .editor-wrap {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 8px;
+
+      height: calc(100vh - 64px);
+
+    }
+
+    .title-row { display: flex; gap: 8px; align-items: center; }
+
+    input.title {
+
+      flex: 1;
+
+      background: transparent;
+
+      border: 1px dashed rgba(0, 255, 102, 0.06);
+
+      padding: 8px;
+
+      border-radius: 6px;
+
+      color: var(--neon);
+
+      font-family: inherit;
+
+    }
+
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* Terminal-like editor */
+
+    #editor {
+
+      flex: 1;
+
+      background: var(--bg);
+
+      border-radius: 8px;
+
+      padding: 16px;
+
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+
+      overflow: auto;
+
+      white-space: pre-wrap;
+
+      outline: none;
+
+      border: 2px solid rgba(0, 255, 102, 0.04);
+
+      box-shadow: inset 0 0 40px rgba(0, 255, 102, 0.02);
+
+      color: var(--editor-text); /* Cor melhorada */
+
+      font-size: 15px;
+
+      line-height: 1.4;
+
+      min-height: 200px;
+
+    }
+
+    #editor:empty:before {
+
+      content: 'Digite sua nota aqui...';
+
+      color: rgba(0, 255, 102, 0.18);
+
+    }
+
+    /* highlight within contenteditable */
+
+    .hl {
+
+      background: rgba(255, 235, 59, 0.22);
+
+      color: #000;
+
+      padding: 0 2px;
+
+      border-radius: 2px;
+
+    }
+
+    /* Right column */
+
+    .meta {
+
+      padding: 12px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 10px;
+
+      height: calc(100vh - 64px);
+
+      overflow: auto;
+
+    }
+
+    .search-global { display: flex; gap: 8px; }
+
+    .note-meta { background: rgba(0, 0, 0, 0.45); padding: 10px; border-radius: 6px; }
+
+    .flex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .muted { color: rgba(127, 255, 153, 0.6); font-size: 13px; }
+
+    .footer-actions { display: flex; gap: 8px; }
+
+    input[type=file] { display: none; }
+
+    /* Responsive adjustments for mobile */
+
+    @media (max-width: 980px) {
+
+      .app {
+
+        grid-template-columns: 1fr;
+
+        grid-auto-rows: auto;
+
+        padding: 8px; /* Reduz o espaçamento nas laterais */
+
+        height: auto;
+
+        min-height: 100vh;
+
+      }
+
+      .sidebar, .meta, .editor-wrap {
+
+        height: auto; /* Altura automática para os painéis */
+
+      }
+
+      .sidebar { order: 3; }
+
+      .meta { order: 4; }
+
+      .editor-wrap { order: 2; }
+
+      header { order: 1; flex-wrap: wrap; }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <div class="app">
+
+    <header class="panel">
+
+      <div class="brand">BLOCO • MATRIX</div>
+
+      <div style="flex:1"></div>
+
+      <div class="muted">Terminal · Notas locais · Autosave</div>
+
+    </header>
+
+    <aside class="sidebar panel">
+
+      <div class="controls">
+
+        <button id="newNote" class="small primary">+ Nova</button>
+
+        <button id="saveNote" class="small">Salvar</button>
+
+        <button id="exportNote" class="small">Exportar .txt</button>
+
+        <label for="importFile" class="small" style="cursor:pointer">Importar .txt</label>
+
+        <input id="importFile" type="file" accept=".txt">
+
+      </div>
+
+      <div style="display:flex;gap:6px;margin-top:6px">
+
+        <input id="createFolderName" placeholder="Nome da pasta" style="flex:1;padding:8px;background:transparent;border:1px dashed rgba(0,255,102,0.06);border-radius:6px;color:var(--neon)">
+
+        <button id="createFolder" class="small">Criar</button>
+
+      </div>
+
+      <div class="folders" id="foldersArea">
+
+        </div>
+
+      <div style="margin-top:8px">
+
+        <div class="muted">Notas</div>
+
+        <div class="notes-list" id="notesList"></div>
+
+      </div>
+
+    </aside>
+
+    <main class="editor-wrap panel">
+
+      <div class="title-row">
+
+        <input id="noteTitle" class="title" placeholder="Título da nota...">
+
+        <div class="toolbar">
+
+          <button id="markBtn" title="Marca texto">Marca</button>
+
+          <button id="unmarkBtn" title="Remover marca">Remover Marca</button>
+
+          <button id="searchInsideBtn" title="Pesquisar na nota">🔍</button>
+
+          <input id="searchInside" placeholder="Pesquisar na nota" style="padding:6px;background:transparent;border:1px dashed rgba(0,255,102,0.06);border-radius:6px;color:var(--neon)">
+
+        </div>
+
+      </div>
+
+      <div id="editor" contenteditable="true" spellcheck="false" aria-label="Editor de notas estilo terminal"></div>
+
+      <div class="flex-row footer-actions">
+
+        <div id="charCounter" class="muted">Caracteres: 0</div> <div style="flex:1"></div>
+
+        <button id="moveToFolder" class="small">Mover para pasta</button>
+
+        <button id="deleteNote" class="small">Excluir</button>
+
+      </div>
+
+    </main>
+
+    <aside class="meta panel">
+
+      <div class="search-global">
+
+        <input id="searchGlobal" placeholder="Buscar notas (título/conteúdo)" style="flex:1;padding:8px;background:transparent;border:1px dashed rgba(0,255,102,0.06);border-radius:6px;color:var(--neon)">
+
+        <button id="searchBtn" class="small">🔍</button>
+
+      </div>
+
+      <div class="note-meta">
+
+        <div>Última edição: <span id="lastEdit">—</span></div>
+
+        <div>Pasta: <span id="currentFolder">Inbox</span></div>
+
+        <div>ID: <span id="noteId">—</span></div>
+
+      </div>
+
+      <div>
+
+        <div class="muted">Ações rápidas</div>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+
+          <button id="downloadAll" class="small">Exportar todas .txt</button>
+
+          <button id="clearAll" class="small">Limpar tudo</button>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script>
+
+    // Estrutura de dados local
+
+    const STORAGE_KEY = 'bloco_matrix_v1';
+
+    let data = { folders: [], notes: [] };
+
+    let currentNoteId = null;
+
+    // Helpers
+
+    const $ = id => document.getElementById(id);
+
+    function uid() { return 'n_' + Date.now() + '_' + Math.floor(Math.random() * 10000) }
+
+    function now() { return new Date().toISOString() }
+
+    function formatDate(iso) { const d = new Date(iso); return d.toLocaleString(); }
+
+    // Converte HTML para texto simples (para exportação e busca)
+
+    function htmlToText(html) {
+
+        const temp = document.createElement('div');
+
+        temp.innerHTML = html;
+
+        return temp.innerText.replace(/\u00A0/g, ' ');
+
+    }
+
+    // Load/Save
+
+    function load() {
+
+      const raw = localStorage.getItem(STORAGE_KEY);
+
+      if (raw) { try { data = JSON.parse(raw) } catch (e) { console.error(e) } }
+
+      // ensure default folder
+
+      if (!data.folders) data.folders = [];
+
+      if (!data.notes) data.notes = [];
+
+      if (!data.folders.find(f => f.name === 'Inbox')) data.folders.unshift({ id: 'f_inbox', name: 'Inbox' });
+
+      renderFolders(); renderNotesList();
+
+    }
+
+    function persist() {
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+    }
+
+    // Render
+
+    function renderFolders() {
+
+      const area = $('foldersArea'); area.innerHTML = '';
+
+      data.folders.forEach(f => {
+
+        const el = document.createElement('div'); el.className = 'folder'; el.dataset.id = f.id;
+
+        el.innerHTML = `<div>${f.name}</div><div style="display:flex;gap:6px"><button class="small" data-action="rename">✎</button><button class="small" data-action="del">🗑</button></div>`;
+
+        el.querySelector('[data-action="rename"]').onclick = () => {
+
+          const nn = prompt('Renomear pasta', f.name); if (nn) { f.name = nn; persist(); renderFolders(); }
+
+        }
+
+        el.querySelector('[data-action="del"]').onclick = () => { if (confirm('Excluir pasta e mover notas para Inbox?')) { moveFolderToInbox(f.id); persist(); renderFolders(); renderNotesList(); } }
+
+        el.onclick = () => { document.querySelectorAll('.folder').forEach(x => x.classList.remove('selected')); el.classList.add('selected'); renderNotesList(f.id) };
+
+        area.appendChild(el);
+
+      });
+
+    }
+
+    function renderNotesList(folderId = null) {
+
+      const list = $('notesList'); list.innerHTML = '';
+
+      const notesInFolder = folderId ? data.notes.filter(n => n.folder === folderId) : data.notes.filter(n => !data.folders.find(f => f.id === n.folder) || n.folder === (folderId || 'f_inbox'));
+
+      const notesToDisplay = folderId ? notesInFolder : data.notes;
+
+      notesToDisplay.sort((a, b) => (new Date(b.lastEdited)) - (new Date(a.lastEdited)));
+
+      notesToDisplay.forEach(n => {
+
+        const it = document.createElement('div'); it.className = 'note-item'; it.dataset.id = n.id;
+
+        it.innerHTML = `<strong>${n.title || '(sem título)'}</strong><div class="muted">${formatDate(n.lastEdited)}</div>`;
+
+        it.onclick = () => { loadNote(n.id) };
+
+        if (currentNoteId === n.id) it.classList.add('active');
+
+        list.appendChild(it);
+
+      });
+
+    }
+
+    // Note operations
+
+    function newNote() {
+
+      const id = uid();
+
+      const note = { id, title: '', content: '', created: now(), lastEdited: now(), folder: data.folders[0].id };
+
+      data.notes.unshift(note); persist(); renderNotesList(); loadNote(id);
+
+    }
+
+    function saveNote() {
+
+      if (!currentNoteId) { // create inline
+
+        const id = uid(); currentNoteId = id; data.notes.unshift({ id, title: $('noteTitle').value, content: getEditorContent(), created: now(), lastEdited: now(), folder: data.folders[0].id });
+
+      } else {
+
+        const n = data.notes.find(x => x.id === currentNoteId);
+
+        if (n) { n.title = $('noteTitle').value; n.content = getEditorContent(); n.lastEdited = now(); }
+
+      }
+
+      persist(); renderNotesList(); updateMeta(); alert('Salvo!');
+
+    }
+
+    function loadNote(id) {
+
+      let n = data.notes.find(x => x.id === id);
+
+      if (!n) { // create blank note when id doesn't exist
+
+        n = { id, title: '', content: '', created: now(), lastEdited: now(), folder: data.folders[0].id }; data.notes.unshift(n); persist();
+
+      }
+
+      currentNoteId = n.id; $('noteId').textContent = n.id; $('noteTitle').value = n.title; setEditorContent(n.content);
+
+      $('lastEdit').textContent = formatDate(n.lastEdited); $('currentFolder').textContent = (data.folders.find(f => f.id === n.folder) || { name: 'Inbox' }).name;
+
+      document.querySelectorAll('.note-item').forEach(x => x.classList.toggle('active', x.dataset.id === id));
+
+      updateCharCounter();
+
+    }
+
+    function deleteNote() {
+
+      if (!currentNoteId) return alert('Nenhuma nota selecionada');
+
+      if (!confirm('Excluir nota selecionada?')) return;
+
+      data.notes = data.notes.filter(n => n.id !== currentNoteId);
+
+      persist(); currentNoteId = null; $('editor').innerHTML = ''; $('noteTitle').value = ''; renderNotesList(); updateMeta();
+
+      updateCharCounter();
+
+    }
+
+    function moveToFolder() {
+
+      if (!currentNoteId) return alert('Selecione a nota primeiro');
+
+      const folderName = prompt('Digite o nome da pasta de destino (existente ou nova):');
+
+      if (!folderName) return;
+
+      let f = data.folders.find(ff => ff.name.toLowerCase() === folderName.toLowerCase());
+
+      if (!f) { f = { id: 'f_' + Date.now(), name: folderName }; data.folders.push(f); }
+
+      const n = data.notes.find(x => x.id === currentNoteId); if (n) { n.folder = f.id; n.lastEdited = now(); }
+
+      persist(); renderFolders(); renderNotesList(f.id); updateMeta();
+
+    }
+
+    function moveFolderToInbox(folderId) {
+
+      data.notes.forEach(n => { if (n.folder === folderId) n.folder = data.folders[0].id; });
+
+      data.folders = data.folders.filter(f => f.id !== folderId);
+
+    }
+
+    // Editor helpers - CHANGED
+
+    function getEditorContent() { return $('editor').innerHTML; }
+
+    function setEditorContent(html) { $('editor').innerHTML = html || ''; }
+
+    function updateCharCounter() { const count = $('editor').innerText.length; $('charCounter').textContent = `Caracteres: ${count}`; }
+
+    // Highlight selection
+
+    function wrapSelectionWithClass(cls) {
+
+      const sel = window.getSelection(); if (!sel || sel.isCollapsed) return alert('Selecione o texto primeiro');
+
+      const range = sel.getRangeAt(0);
+
+      const content = range.extractContents();
+
+      const span = document.createElement('span'); span.className = cls; span.appendChild(content);
+
+      range.insertNode(span);
+
+      sel.removeAllRanges();
+
+    }
+
+    function removeHighlights() {
+
+      const editor = $('editor'); const spans = editor.querySelectorAll('span.hl');
+
+      spans.forEach(s => { const parent = s.parentNode; while (s.firstChild) parent.insertBefore(s.firstChild, s); parent.removeChild(s); parent.normalize(); });
+
+    }
+
+    // Search inside note
+
+    function searchInside() {
+
+      const q = $('searchInside').value.trim(); if (!q) return alert('Digite o termo para pesquisar na nota');
+
+      removeHighlights();
+
+      const editor = $('editor');
+
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+
+      const nodes = [];
+
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      nodes.forEach(nt => {
+
+        const idx = nt.nodeValue.toLowerCase().indexOf(q.toLowerCase());
+
+        if (idx >= 0) {
+
+          const parent = nt.parentNode;
+
+          if (parent.classList.contains('hl')) return; // Don't highlight inside a highlight
+
+          const after = nt.splitText(idx);
+
+          const match = after.splitText(q.length);
+
+          const span = document.createElement('span'); span.className = 'hl'; span.textContent = match.previousSibling.nodeValue;
+
+          parent.insertBefore(span, match.previousSibling);
+
+          parent.removeChild(match.previousSibling);
+
+        }
+
+      });
+
+    }
+
+    // Global search - CHANGED
+
+    function searchGlobal() {
+
+      const q = $('searchGlobal').value.trim().toLowerCase();
+
+      if (!q) { renderNotesList(); return; }
+
+      const results = data.notes.filter(n => 
+
+          (n.title || '').toLowerCase().includes(q) || 
+
+          htmlToText(n.content || '').toLowerCase().includes(q)
+
+      );
+
+      const list = $('notesList'); list.innerHTML = '';
+
+      results.sort((a, b) => new Date(b.lastEdited) - new Date(a.lastEdited));
+
+      results.forEach(n => { const it = document.createElement('div'); it.className = 'note-item'; it.dataset.id = n.id; it.innerHTML = `<strong>${n.title || '(sem título)'}</strong><div class="muted">${formatDate(n.lastEdited)}</div>`; it.onclick = () => loadNote(n.id); list.appendChild(it); });
+
+    }
+
+    // Import/Export - CHANGED
+
+    function exportCurrentNote() {
+
+      if (!currentNoteId) return alert('Selecione ou salve a nota antes de exportar');
+
+      const n = data.notes.find(x => x.id === currentNoteId);
+
+      const text = n ? htmlToText(n.content) : htmlToText($('editor').innerHTML);
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (n.title || 'nota') + '.txt'; a.click(); URL.revokeObjectURL(a.href);
+
+    }
+
+    function importTxtFile(file) {
+
+      const reader = new FileReader(); reader.onload = () => {
+
+        const txt = reader.result.replace(/\r\n/g, '\n');
+
+        // Convert newlines to <br> for proper rendering in HTML
+
+        const htmlContent = txt.replace(/\n/g, '<br>');
+
+        setEditorContent(htmlContent); 
+
+        updateCharCounter();
+
+      };
+
+      reader.readAsText(file, 'utf-8');
+
+    }
+
+    function exportAll() {
+
+      if (!data.notes.length) return alert('Sem notas para exportar');
+
+      let out = '';
+
+      data.notes.forEach(n => {
+
+        out += `--- NOTE: ${n.title || '(sem título)'} | ID:${n.id} | Pasta:${(data.folders.find(f => f.id === n.folder) || { name: 'Inbox' }).name} | Última:${n.lastEdited}\n`;
+
+        out += htmlToText(n.content || '') + '\n\n';
+
+      });
+
+      const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'todas_as_notas.txt'; a.click(); URL.revokeObjectURL(a.href);
+
+    }
+
+    // Autosave - CHANGED
+
+    window.addEventListener('beforeunload', () => {
+
+      if (currentNoteId) {
+
+        const n = data.notes.find(x => x.id === currentNoteId);
+
+        if (n) { n.content = getEditorContent(); n.title = $('noteTitle').value; n.lastEdited = now(); }
+
+        persist();
+
+      } else if ($('editor').innerText.trim()) {
+
+        const id = uid(); const note = { id, title: $('noteTitle').value, content: getEditorContent(), created: now(), lastEdited: now(), folder: data.folders[0].id }; data.notes.unshift(note); persist();
+
+      }
+
+    });
+
+    setInterval(() => {
+
+      if (currentNoteId) { 
+
+          const n = data.notes.find(x => x.id === currentNoteId); 
+
+          if (n) { 
+
+              n.content = getEditorContent(); 
+
+              n.title = $('noteTitle').value; 
+
+              n.lastEdited = now(); 
+
+              persist(); 
+
+              // Don't re-render the whole list on autosave to avoid flicker
+
+              // renderNotesList(); 
+
+              updateMeta(); 
+
+          } 
+
+      }
+
+    }, 10000);
+
+    function updateMeta() {
+
+      if (!currentNoteId) { $('lastEdit').textContent = '—'; $('currentFolder').textContent = '—'; $('noteId').textContent = '—'; return; }
+
+      const n = data.notes.find(x => x.id === currentNoteId);
+
+      if (n) { $('lastEdit').textContent = formatDate(n.lastEdited); $('currentFolder').textContent = (data.folders.find(f => f.id === n.folder) || { name: 'Inbox' }).name; $('noteId').textContent = n.id; }
+
+    }
+
+    // Wire events
+
+    window.addEventListener('DOMContentLoaded', () => {
+
+      load();
+
+      if (!data.notes.length) { 
+
+          const id = uid(); 
+
+          const initialContent = 'Este é seu editor estilo terminal. Use Importar/Exportar para arquivos .txt.<br><br>Selecione texto e clique em "Marca" para destacar.';
+
+          data.notes.push({ id, title: 'Bem-vindo ao Bloco Matrix', content: initialContent, created: now(), lastEdited: now(), folder: data.folders[0].id }); 
+
+          persist(); 
+
+      }
+
+      renderNotesList(); 
+
+      loadNote(data.notes[0].id);
+
+      $('newNote').onclick = newNote;
+
+      $('saveNote').onclick = saveNote;
+
+      $('exportNote').onclick = exportCurrentNote;
+
+      $('importFile').onchange = (ev) => { const f = ev.target.files[0]; if (f) importTxtFile(f); ev.target.value = ''; }
+
+      $('createFolder').onclick = () => { const name = $('createFolderName').value.trim(); if (!name) return alert('Digite o nome da pasta'); const id = 'f_' + Date.now(); data.folders.push({ id, name }); persist(); renderFolders(); $('createFolderName').value = ''; }
+
+      $('markBtn').onclick = () => wrapSelectionWithClass('hl');
+
+      $('unmarkBtn').onclick = removeHighlights;
+
+      $('searchInsideBtn').onclick = searchInside;
+
+      $('searchBtn').onclick = searchGlobal;
+
+      $('searchGlobal').addEventListener('keyup', (e) => { if (e.key === 'Enter') searchGlobal(); });
+
+      $('searchInside').addEventListener('keyup', (e) => { if (e.key === 'Enter') searchInside(); });
+
+      $('moveToFolder').onclick = moveToFolder;
+
+      $('deleteNote').onclick = deleteNote;
+
+      $('downloadAll').onclick = exportAll;
+
+      $('clearAll').onclick = () => { if (confirm('Limpar todas as notas e pastas (exceto Inbox)?')) { data = { folders: [{ id: 'f_inbox', name: 'Inbox' }], notes: [] }; persist(); renderFolders(); renderNotesList(); $('editor').innerHTML = ''; $('noteTitle').value = ''; currentNoteId = null; updateMeta(); } }
+
+      $('editor').addEventListener('input', updateCharCounter);
+
+    });
+
+  </script>
+
+  <script>
+
+    if ('serviceWorker' in navigator) {
+
+      window.addEventListener('load', () => {
+
+        navigator.serviceWorker.register('/service-worker.js')
+
+          .then(registration => {
+
+            console.log('Service Worker registrado com sucesso:', registration);
+
+          })
+
+          .catch(err => {
+
+            console.log('Falha ao registrar o Service Worker:', err);
+
+          });
+
+      });
+
+    }
+
+  </script>
+
+</body>
+
+</html>
+
