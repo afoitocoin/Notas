@@ -1,12 +1,16 @@
 {
 
+  "id": "/",
+  
   "name": "Bloco de Notas - Matrix Terminal",
 
   "short_name": "Bloco Matrix",
 
   "description": "Um bloco de notas simples com tema de terminal hacker, que funciona offline.",
 
-  "start_url": ".",
+  "start_url": "/",
+
+  "scope": "/",
 
   "display": "standalone",
 
